@@ -5,7 +5,11 @@ const presenters = [
   { event: "install", presenter: installPresenter },
   { event: "activate", presenter: activatePresenter },
   { event: "fetch", presenter: fetchPresenter },
-  { event: "sync", presenter: syncPresenter }
+  { event: "sync", presenter: syncPresenter },
+  { event: "push", presenter: pushPresenter },
+  //{ event: "notificationclose", presenter: closeNotification },
+  { event: "notificationclick", presenter: clickNotification }
+
 ];
 
 presenters.forEach((p) => self.addEventListener(p.event, p.presenter));

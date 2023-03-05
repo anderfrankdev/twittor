@@ -1,15 +1,86 @@
+
 var url = window.location.href;
 var swLocation = "/twittor/sw.js";
 const api = url.includes("localhost") 
   ? "http://localhost:3000/api" 
   : "api";
-if (navigator.serviceWorker) {
+
+const generateSuscription = async (registration) => {
+  const key = await fetch(api+'/key')
+    .then(res=>res.arrayBuffer())
+    .then(key=> new Uint8Array(key))
+    
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly:true,
+    applicationServerKey: key
+  })
+  .then(res=>res.toJSON())
+  .catch(err=>window.location.reload())
+
+  return subscription
+}
+
+const sendSuscription = (subscription) => fetch(api+'/subscribe',{
+  method:'POST',
+  headers:{
+    'Content-Type':'application/json'
+  },
+  body:JSON.stringify(subscription)
+})
+.then(res=>res.json())
+.catch(err=>{
+
+  return false
+})
+
+const subscribeNotications = async (registration) => {
+  const subscription = await generateSuscription(registration)
+  const serverResponse = await sendSuscription(subscription)
+
+  if(!serverResponse){
+    return registration.pushManager.getSubscription().then(sub=>{
+      sub.unsubscribe()
+    })
+  }
+
+  return serverResponse
+}
+
+window.addEventListener('load',async (e)=>{
+
+  if (!navigator.serviceWorker) return
+
   if (url.includes("localhost")) {
     swLocation = "/sw.js";
   }
-  navigator.serviceWorker.api=api
-  navigator.serviceWorker.register(swLocation);
-}
+
+  const registration = await navigator
+    .serviceWorker
+    .register(swLocation);
+
+  await registration.pushManager.getSubscription()
+
+  if(!window.Notification) return
+
+  if(Notification.permission==='granted'){
+    
+    const serverResponse = await subscribeNotications(registration)
+    console.log(serverResponse)
+
+    return     
+  }
+
+  Notification.requestPermission(async permission=>{
+    if(Notification.permission!='granted') return
+
+    const serverResponse = await subscribeNotications(registration)
+    console.log(serverResponse)
+
+    return
+  })
+
+});
+
 
 // Referencias de jQuery
 
@@ -171,3 +242,31 @@ const isOnlinePresenter = (e) => {
 window.addEventListener('online',isOnlinePresenter)
 window.addEventListener('offline',isOnlinePresenter)
 
+const createNotification = (body)=>{
+  const opts = {
+    body,
+    icon:"/img/icons/icon-72x72.png",
+    actions:[]
+  }
+  const n = new Notification('Hola',opts)
+
+  n.onclick = () => console.log('Click')
+}
+
+fetch(api+"/push",{
+  method:"POST",
+  headers:{
+    'Content-Type':'application/json'
+  },
+  body:JSON.stringify({
+
+    data:{
+      user:'thor',
+      body:'Quiero comer chocolate',
+      title:'Antojo'
+    }
+
+  })
+})
+.then(res=>res.json())
+.then(console.log)

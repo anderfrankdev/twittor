@@ -132,9 +132,21 @@ const getPosts = async (e,cachedFile)=>{
   return posts.clone();
 }
 
+const postToIgnore = [
+  "api/suscribe",
+  "api/push"
+]
+
 const fetchResponse = async (e) => {
 
   if(e.request.method.toUpperCase()==='POST'){
+
+    for (let i = postToIgnore.length; i--;) {
+      if (e.request.url.includes(postToIgnore[i])) {
+        console.log(e.request.url.includes(postToIgnore[i]))
+        return fetch(e.request)
+      }
+    }
 
     const response = await fetch(e.request.clone())
       .catch(err=> new Response(new Blob(),{
@@ -195,3 +207,58 @@ const syncPresenter = e =>{
   e.waitUntil(postMessages())
 
 }
+
+const pushPresenter = e => {
+  console.log(e)
+  const data = JSON.parse(e.data.text())
+  const title = data.title
+  const options = {
+    body:data.body,
+    icon:`img/avatars/${data.user}.jpg`,
+    badge:'img/favicon.ico',
+    vibrate:[125,75,125,275,200,275,125,75,125,275,200,600,200,600],
+    openUrl:'/',
+    actions:[
+      {
+        action:"thor-action",
+        title:"Thor",
+        icon:"img/avatar/thor.jpg"
+      },
+      {
+        action:"ironman-action",
+        title:"Ironman",
+        icon:"img/avatar/ironman.jpg"
+      }
+    ]
+  }
+
+  e.waitUntil(
+    self
+    .registration
+    .showNotification(title,options)
+  )
+}
+
+const closeNotification = (e)=>console.log(e)
+
+const clickNotification = (e)=>{
+  const {action,notification} = e
+
+  const response = clients.matchAll().then(clientsIn=>{
+    let client = clientsIn.find( c => c.visibityState==='visible')
+
+    if(client!==undefined){
+      client.navigate(notification.data.url);
+      client.focus();
+      notification.close()
+      return
+    }
+
+    client.openWindow(notification.data.url)
+    notification.close()
+  })
+
+  e.waitUntil(response)
+
+}
+
